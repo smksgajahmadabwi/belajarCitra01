@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMK Gajah Mada - Grayscale Studio</title>
+
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body);"></script>
+
+    <style>
+        /* BASE & LAYOUT */
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(120deg, #004e92, #000428);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 30px 20px;
+        }
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { font-size: 36px; letter-spacing: 2px; margin-bottom: 5px; }
+        header h2 { font-size: 22px; font-weight: 400; color: #d0e7ff; margin-top: 0; }
+        .card {
+            background: #ffffff;
+            color: #000;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .3);
+            margin-bottom: 30px;
+        }
+        .card h3 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 0;
+            color: #004e92;
+        }
+        .flex-display {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .image-box {
+            flex: 1;
+            min-width: 300px;
+            text-align: center;
+        }
+        canvas, img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            border: 3px solid #004e92;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        footer {
+            text-align: center;
+            opacity: .8;
+            margin-top: 40px;
+            padding-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        /* TAB STYLING */
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #003668;
+            color: white;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            margin-right: 5px;
+            transition: background-color 0.3s;
+        }
+        .tab-button.active {
+            background-color: #fff;
+            color: #004e92;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* PIXEL GRID STYLING */
+        .pixel-controls { 
+            margin-bottom: 20px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+        .pixel-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            width: 300px; /* 10 * 30px */
+            height: 300px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+        }
+        .pixel {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .grid-wrapper { text-align: center; }
+
+        /* CALCULATION LOG */
+        #calculationLog {
+            max-height: 400px;
+            overflow-y: scroll;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            border-bottom: 1px dotted #ccc;
+            padding-bottom: 5px;
+        }
+        .log-header {
+            font-weight: bold;
+            color: #444;
+        }
+        .katex-display {
+            font-size: 0.9em !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <header>
+            <h1>SMK GAJAH MADA BANYUWANGI</h1>
+            <h2>APLIKASI MATEMATIKA PADA PROSES KONVERSI WARNA KE GRAYSCALE</h2>
+        </header>
+
+        <!-- TAB NAVIGATION -->
+        <nav class="tabs">
+            <button class="tab-button active" onclick="openTab('tab1-content', this)">Unggah Gambar</button>
+            <button class="tab-button" onclick="openTab('tab2-content', this)">Pixel Editor 10x10</button>
+        </nav>
+
+        <!-- TAB 1 CONTENT: IMAGE UPLOAD (Sama seperti versi sebelumnya) -->
+        <div id="tab1-content" class="tab-content active">
+            <div class="card">
+                <h3>Pilih Gambar</h3>
+                <input type="file" accept="image/*" onchange="loadImage(event)">
+            </div>
+            
+            <div class="card">
+                <div class="flex-display">
+                    <div class="image-box">
+                        <h3>Gambar Asli (Input RGB)</h3>
+                        <img id="src" alt="Gambar Asli" style="display:none;">
+                    </div>
+                    <div class="image-box">
+                        <h3>Hasil Grayscale (Output Y)</h3>
+                        <canvas id="cv"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card math-explanation">
+                <!-- STATIC MATH EXPLANATION -->
+                <h3>Proses Matematika Konversi Warna ke Grayscale</h3>
+
+                <h4>1. Representasi Piksel Warna (RGB)</h4>
+                <p>Setiap piksel pada citra berwarna direpresentasikan sebagai vektor tiga dimensi yang terdiri dari komponen warna Merah (R), Hijau (G), dan Biru (B).</p>
+                $$ \text{Piksel Warna} = (R, G, B) $$
+                
+                <hr>
+
+                <h4>2. Tujuan Konversi Grayscale</h4>
+                <p>Tujuannya adalah menyederhanakan informasi menjadi nilai tunggal Intensitas atau Luminositas ($Y$).</p>
+                $$ (R, G, B) \xrightarrow{\text{Konversi}} (Y, Y, Y) $$
+                
+                <hr>
+
+                <h4>3. Metode Luminosity (Weighted Average) - Standar BT.709</h4>
+                <p>Formula pembobotan yang digunakan untuk meniru sensitivitas mata manusia:</p>
+
+                $$
+                Y = (0.2126 \cdot R) + (0.7152 \cdot G) + (0.0722 \cdot B)
+                $$
+                
+                <hr>
+
+                <h4>4. Bentuk Aljabar Linear (Perkalian Vektor)</h4>
+                $$
+                \begin{bmatrix}
+                Y
+                \end{bmatrix}
+                =
+                \begin{bmatrix}
+                0.2126 & 0.7152 & 0.0722
+                \end{bmatrix}
+                \begin{bmatrix}
+                R \\
+                G \\
+                B
+                \end{bmatrix}
+                $$
+
+                <hr>
+
+                <h4>5. Ringkasan Proses Matematis Komputasi</h4>
+                <p>Langkah-langkah ini menjelaskan bagaimana JavaScript memproses data piksel gambar yang diunggah:</p>
+                <ol>
+                    <li>**Ekstraksi Data Piksel:** JavaScript membaca data citra mentah dari Canvas, yang berupa array satu dimensi berisi urutan $[R_1, G_1, B_1, A_1, \dots]$.</li>
+                    <li>**Iterasi & Penerapan Formula:** Nilai $R, G, B$ diekstraksi dan dihitung $Y$ menggunakan formula BT.709.
+                        $$Y = \text{Round}((0.2126 \cdot R) + (0.7152 \cdot G) + (0.0722 \cdot B))$$
+                    </li>
+                    <li>**Pembaruan Piksel:** Nilai piksel dalam array data diperbarui menjadi $[Y, Y, Y, A]$.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- TAB 2 CONTENT: PIXEL EDITOR -->
+        <div id="tab2-content" class="tab-content">
+            <div class="card">
+                <h3>Editor Interaktif Pixel 10x10</h3>
+
+                <div class="pixel-controls">
+                    Pilih Warna: <input type="color" id="colorPicker" value="#FF0000">
+                    <button onclick="resetGrids()">Reset Grid</button>
+                </div>
+
+                <div class="flex-display">
+                    <div class="image-box grid-wrapper">
+                        <h4>Kotak Input Warna (10x10)</h4>
+                        <div class="pixel-grid" id="inputGrid"></div>
+                    </div>
+                    <div class="image-box grid-wrapper">
+                        <h4>Kotak Hasil Grayscale (10x10)</h4>
+                        <div class="pixel-grid" id="outputGrid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card math-explanation">
+                <h3>Perhitungan Matematika Detail (100 Piksel)</h3>
+                <p>Di bawah ini adalah rincian perhitungan Luminosity (BT.709) yang dilakukan untuk setiap piksel yang Anda warnai secara real-time. Klik pada kotak grid untuk memperbarui perhitungan.</p>
+                <div id="calculationLog">
+                    <!-- Log perhitungan akan diisi oleh JavaScript setelah inisialisasi -->
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                Media Pembelajaran Pengolahan Citra Digital | Kosentrasi Keahlian Desain Komunikasi Visual (DKV)<br>
+                © SMK Gajah Mada Banyuwangi
+            </p>
+        </footer>
+
+    </div>
+
+    <script>
+        let currentColor = "#FF0000";
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // 1. Initialize the 10x10 grids
+            initializePixelGrids(); 
+            
+            // 2. Initial KaTeX rendering for static math (Tab 1)
+            renderMathInElement(document.getElementById('tab1-content'), {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false }
+                ]
+            });
+
+            // 3. Panggil perhitungan awal untuk memastikan log terisi saat dimuat (FIX for empty log)
+            updateGrayscaleAndLog(); 
+
+            // Attach event listener for color change
+            const colorPicker = document.getElementById('colorPicker');
+            if (colorPicker) {
+                currentColor = colorPicker.value;
+                colorPicker.addEventListener('input', (e) => {
+                    currentColor = e.target.value;
+                });
+            }
+        });
+
+        // --- TAB CONTROL LOGIC ---
+        function openTab(tabId, button) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            button.classList.add('active');
+        }
+
+        // --- UTILITY FUNCTIONS ---
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+        
+        // --- TAB 1: IMAGE UPLOAD LOGIC ---
+        function loadImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (eventReader) => {
+                const img = document.getElementById('src');
+                img.src = eventReader.target.result;
+                img.style.display = 'block';
+                img.onload = () => {
+                    convertToGrayscale(img);
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function convertToGrayscale(img) {
+            const canvas = document.getElementById('cv');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            ctx.drawImage(img, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data; 
+
+            for (let i = 0; i < data.length; i += 4) {
+                const R = data[i];
+                const G = data[i + 1];
+                const B = data[i + 2];
+                
+                const Y = Math.round(
+                    (0.2126 * R) + 
+                    (0.7152 * G) + 
+                    (0.0722 * B)
+                );
+                
+                data[i] = Y;     
+                data[i + 1] = Y; 
+                data[i + 2] = Y; 
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // --- TAB 2: PIXEL EDITOR LOGIC ---
+
+        function initializePixelGrids() {
+            const inputGrid = document.getElementById('inputGrid');
+            const outputGrid = document.getElementById('outputGrid');
+            
+            if (!inputGrid || !outputGrid) return;
+
+            inputGrid.innerHTML = '';
+            outputGrid.innerHTML = '';
+
+            // Default initial color (White)
+            const initialR = 255;
+            const initialG = 255;
+            const initialB = 255;
+            const initialRgbString = `${initialR},${initialG},${initialB}`;
+
+
+            for (let i = 0; i < 100; i++) {
+                // Input Pixel (Color)
+                const inputPixel = document.createElement('div');
+                inputPixel.className = 'pixel input-pixel';
+                inputPixel.id = `input-${i}`;
+                inputPixel.dataset.index = i;
+                inputPixel.style.backgroundColor = '#FFFFFF';
+                inputPixel.dataset.rgb = initialRgbString; 
+                inputPixel.addEventListener('click', handlePixelClick);
+                inputGrid.appendChild(inputPixel);
+
+                // Output Pixel (Grayscale)
+                const outputPixel = document.createElement('div');
+                outputPixel.className = 'pixel output-pixel';
+                outputPixel.id = `output-${i}`;
+                outputPixel.style.backgroundColor = '#FFFFFF';
+                outputGrid.appendChild(outputPixel);
+            }
+        }
+        
+        function resetGrids() {
+            initializePixelGrids();
+            updateGrayscaleAndLog();
+        }
+
+        function handlePixelClick(e) {
+            const pixel = e.target;
+            
+            // Set warna baru
+            pixel.style.backgroundColor = currentColor;
+            
+            // Konversi HEX ke RGB untuk penyimpanan data
+            const rgb = hexToRgb(currentColor);
+            pixel.dataset.rgb = `${rgb.r},${rgb.g},${rgb.b}`;
+
+            // Lakukan konversi dan logging
+            updateGrayscaleAndLog();
+        }
+
+        function updateGrayscaleAndLog() {
+            const logContainer = document.getElementById('calculationLog');
+            const inputPixels = document.querySelectorAll('#inputGrid .input-pixel');
+
+            if (!logContainer || inputPixels.length === 0) return;
+
+            let logHTML = '';
+            
+            inputPixels.forEach((inputPixel, index) => {
+                const [R, G, B] = inputPixel.dataset.rgb.split(',').map(Number);
+                const outputPixel = document.getElementById(`output-${index}`);
+                
+                // --- MATEMATIKA: BT.709 ---
+                const Y_float = (0.2126 * R) + (0.7152 * G) + (0.0722 * B);
+                const Y = Math.round(Y_float);
+                
+                // Update Output Grid
+                outputPixel.style.backgroundColor = `rgb(${Y}, ${Y}, ${Y})`;
+
+                // Generate Log Entry
+                const row = Math.floor(index / 10) + 1;
+                const col = (index % 10) + 1;
+
+                // Formatting R, G, B for LaTeX consistency
+                const R_display = R.toString().padStart(3, ' ');
+                const G_display = G.toString().padStart(3, ' ');
+                const B_display = B.toString().padStart(3, ' ');
+
+                // Generate LaTeX string for calculation
+                const latexFormula = `Y = (0.2126 \\times ${R_display}) + (0.7152 \\times ${G_display}) + (0.0722 \\times ${B_display}) = ${Y_float.toFixed(4)} \\approx ${Y}`;
+
+                logHTML += `
+                    <div class="log-entry">
+                        <div class="log-header">
+                            Piksel [Baris ${row}, Kolom ${col}]: RGB(${R}, ${G}, ${B}) \u2192 Grayscale(${Y})
+                        </div>
+                        $$${latexFormula}$$
+                    </div>
+                `;
+            });
+
+            logContainer.innerHTML = logHTML;
+
+            // RENDER DYNAMICALLY GENERATED LATEX
+            renderMathInElement(logContainer, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "$", right: "$", display: false }
+                ],
+                throwOnError: false
+            });
+        }
+    </script>
+
+</body>
+</html>
